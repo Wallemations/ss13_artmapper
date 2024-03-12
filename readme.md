@@ -2,7 +2,7 @@
 
 <p align="center"><b>Download SS13 ArtMapper</b></p>
 <p align="center">
-  <a href="https://github.com/Wallemations/ss13_artmapper/releases/download/{{PUT_VERSION_HERE}}/ArtMapper2.exe">
+  <a href="https://github.com/Wallemations/ss13_artmapper/releases/download/v2.2/ArtMapper2.exe">
     <img src="https://img.shields.io/badge/Download-ArtMapper2.exe-blue?style=for-the-badge&logo=github" alt="Download Link"/>
   </a>
 </p>
