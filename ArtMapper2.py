@@ -6,16 +6,20 @@ import time
 import pyperclip
 import keyboard
 
+
+# Version
+VERSION = "v2.2"
+
 # All valid canvas sizes in the game
 VALID_CANVAS_SIZES = {(11, 11), (19, 19), (23, 19), (23, 23), (24, 24), (36, 24), (45, 27)}
 # The width and height of the window
 WIND_WIDTH, WIND_HEIGHT = 400, 600
-# Time for each countdown, must be an int
-COUNTDOWN_TIME = 3
 # Rate at which the program does its tasks. Going too fast risks lag between client and server
 TRANSRATE = 0.05
 # Key to stop the program
 STOPKEY = "k"
+# Key to input a location
+SCANKEY = "i"
 
 # Do we have an image?
 image_selected = False
@@ -100,72 +104,68 @@ def get_unique_hexes():
         hexbox.itemconfig(i, bg=hex_color, fg=contrast_color(hex_color))
     listdesc.config(text=f"{hexbox.size()} Colors")
 
-def get_spraycolor(countdown=COUNTDOWN_TIME):
+def pos_input(desc, name):
+    desc.config(text=f"Press {SCANKEY} to input location.", fg="white")
+    desc.update()
+    while not keyboard.is_pressed(SCANKEY):
+        time.sleep(TRANSRATE)
+    posget = pyautogui.position()
+    desc.config(text=f"{name} Pos: ({posget.x},{posget.y})", fg="green")
+    return posget
+
+def get_spraycolor():
     global spraycolor_pos
-    if countdown == 0:
-        spraycolor_pos = pyautogui.position()
-        spraycolor_desc.config(text=f"Color-Picker Pos: ({spraycolor_pos.x},{spraycolor_pos.y})", fg="green")
-        return
-    spraycolor_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_spraycolor(countdown - 1))
+    spraycolor_pos = pos_input(spraycolor_desc, "Color-Picker")
 
-
-def get_hexput(countdown=COUNTDOWN_TIME):
+def get_hexput():
     global hexput_pos
-    if countdown == 0:
-        hexput_pos = pyautogui.position()
-        hexput_desc.config(text=f"Hex Input Pos: ({hexput_pos.x},{hexput_pos.y})", fg="green")
-        return
-    hexput_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_hexput(countdown - 1))
+    hexput_pos = pos_input(hexput_desc, "Hex Input")
 
-def get_confirm(countdown=COUNTDOWN_TIME):
+def get_confirm():
     global confirm_pos
-    if countdown == 0:
-        confirm_pos = pyautogui.position()
-        confirm_desc.config(text=f"Confirm Button Pos: ({confirm_pos.x},{confirm_pos.y})", fg="green")
-        return
-    confirm_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_confirm(countdown - 1))
+    confirm_pos = pos_input(confirm_desc, "Confirm Button")
     
-def get_topleft(countdown=COUNTDOWN_TIME):
+def get_topleft():
     global topleft_pos
-    if countdown == 0:
-        topleft_pos = pyautogui.position()
-        topleft_desc.config(text=f"Top Left Canvas Pos: ({topleft_pos.x},{topleft_pos.y})", fg="green")
-        return
-    topleft_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_topleft(countdown - 1))
-
-def get_topright(countdown=COUNTDOWN_TIME):
+    topleft_pos = pos_input(topleft_desc, "Top Left Canvas")
+    
+def get_topright():
     global topright_pos
-    if countdown == 0:
-        topright_pos = pyautogui.position()
-        topright_desc.config(text=f"Top Right Canvas Pos: ({topright_pos.x},{topright_pos.y})", fg="green")
-        return
-    topright_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_topright(countdown - 1))
+    topright_pos = pos_input(topright_desc, "Top Right Canvas")
 
-def get_bottomleft(countdown=COUNTDOWN_TIME):
+def get_bottomleft():
     global bottomleft_pos
-    if countdown == 0:
-        bottomleft_pos = pyautogui.position()
-        bottomleft_desc.config(text=f"Bottom Left Canvas Pos: ({bottomleft_pos.x},{bottomleft_pos.y})", fg="green")
+    bottomleft_pos = pos_input(bottomleft_desc, "Bottom Left Canvas")
+
+def keychange_handler():
+    newkey = keychange_entry.get().lower()
+    if newkey not in "abcdefghijklmnopqrstuvwxyz0123456789":
+        keychange_entry.delete(0, tk.END)
+        keychange_entry.insert(0,"Please use Letters/Numbers!")
         return
-    bottomleft_desc.config(text=f"Put Cursor on location in: {countdown}", fg="black")
-    root.after(1000, lambda: get_bottomleft(countdown - 1))
+    keychange_entry.delete(0, tk.END)
+    keychange_entry.insert(0,"Done!")
+    return newkey
+
+def change_scankey():
+    global SCANKEY
+    SCANKEY = keychange_handler()
+
+def change_stopkey():
+    global STOPKEY
+    STOPKEY = keychange_handler()
 
 def start_mapping():
     global bottomleft_pos, topright_pos, topleft_pos, confirm_pos, hexput_pos, spraycolor_pos, image_selected, image_size
     if not (bottomleft_pos or topright_pos or topleft_pos or confirm_pos or hexput_pos or spraycolor_pos or image_selected):
         startbutton.config(text="Insufficient Data!")
-        time.sleep(COUNTDOWN_TIME)
+        time.sleep(3)
         startbutton.config(text="START")
         return
     title_label.config(text=f"Press {STOPKEY} to halt the program!", fg="red")
     finhexbox.delete(0, tk.END)
     root.update_idletasks()  # Update the GUI
-    time.sleep(COUNTDOWN_TIME)
+    time.sleep(3)
     incrementX = (topright_pos[0] - topleft_pos[0]) / (image_size[0] - 1)
     incrementY = (bottomleft_pos[1] - topleft_pos[1]) / (image_size[1] - 1)
     start_time = time.time()
@@ -185,7 +185,7 @@ def start_mapping():
         for sysX in range(image_size[0]):
             for sysY in range(image_size[1]):
                 if keyboard.is_pressed(STOPKEY):
-                    title_label.config(text=f"SS13 ArtMapper v2.0", fg="black")
+                    title_label.config(text=f"SS13 ArtMapper {VERSION}", fg="black")
                     return
                 if image_hex_array[sysX][sysY] == color:
                     pyautogui.click((incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1])
@@ -195,7 +195,7 @@ def start_mapping():
         update_finhexbox_color(color)
 
     end_time = time.time()
-    title_label.config(text=f"SS13 ArtMapper v2.0\n{time_convert(end_time - start_time)}", fg="black")
+    title_label.config(text=f"SS13 ArtMapper {VERSION}\n{time_convert(end_time - start_time)}", fg="black")
 
 
 def update_finhexbox_color(color):
@@ -207,7 +207,7 @@ def update_finhexbox_color(color):
 
 # Create the main application window
 root = tk.Tk()
-root.title("SS13 ArtMapper v2.0")
+root.title(f"SS13 ArtMapper {VERSION}")
 root.geometry("400x600")
 root.configure(bg="#1e1e1e")
 
@@ -216,7 +216,7 @@ frame_1 = tk.Frame(root, bd=4, relief="raised", bg="#1e1e1e")
 frame_1.pack(fill=tk.BOTH, expand=1)
 
 # Title Label
-title_label = tk.Label(frame_1, text="SS13 ArtMapper v2.0", font=("Franklin Gothic Medium", 15), fg="#ffffff", bg="#1e1e1e")
+title_label = tk.Label(frame_1, text=f"SS13 ArtMapper {VERSION}", font=("Franklin Gothic Medium", 15), fg="#ffffff", bg="#1e1e1e")
 title_label.pack(side=tk.TOP)
 
 # Create a canvas to draw the pixel grid
@@ -311,12 +311,35 @@ bottomleft_desc.pack()
 bottomleft = tk.Button(frame_4, text="Set Location", command=get_bottomleft, bg="#444444", fg="#ffffff")
 bottomleft.pack()
 
+#! Frame for editing our keys
+
+keychangeframe = tk.Frame(frame_3, bd=4, relief="raised", bg="#1e1e1e")
+keychangeframe.pack(side=tk.LEFT)
+
+# Updates the scan & stop keys
+keychange_entry = tk.Entry(keychangeframe)
+keychange_entry.pack()
+
+scankey_button = tk.Button(keychangeframe, text="Change Scan Key", command=change_scankey, bg="#444444", fg="#ffffff")
+scankey_button.pack()
+
+stopkey_button = tk.Button(keychangeframe, text="Change Stop Key", command=change_stopkey, bg="#444444", fg="#ffffff")
+stopkey_button.pack()
+
+#* Start Frame
+startframe = tk.Frame(frame_3, bd=4, relief="raised", bg="green")
+startframe.pack(side=tk.TOP)
+
 # Start Button
-startbutton = tk.Button(frame_3, text="START", command=start_mapping, bg="#444444", fg="#ffffff")
-startbutton.pack()
+startbutton = tk.Button(startframe, text="START", command=start_mapping, bg="#444444", fg="#ffffff")
+startbutton.pack(side=tk.TOP)
+
+#* Because even the quit button needs a frame
+quitframe = tk.Frame(frame_3, bd=4, relief="raised", bg="red")
+quitframe.pack(side=tk.BOTTOM)
 
 # Create a button to quit the program
-quit_button = tk.Button(frame_3, text="Quit", command=quit_program, bg="#444444", fg="#ffffff")
+quit_button = tk.Button(quitframe, text="Quit", command=quit_program, bg="#444444", fg="#ffffff")
 quit_button.pack(side=tk.BOTTOM, anchor=tk.SE)
 
 # Run the Tkinter event loop
