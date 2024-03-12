@@ -1,4 +1,8 @@
-# SS13 ArtMapper v2.0 &middot; [![GitHub release](https://img.shields.io/github/release/Wallemations/ss13_artmapper.svg?label=ArtMapper)](https://github.com/Wallemations/ss13_artmapper/releases/latest) [![Github All Releases](https://img.shields.io/github/downloads/Wallemations/ss13_artmapper/total.svg?logo=github)](https://github.com/Wallemations/ss13_artmapper/releases)
+# SS13 ArtMapper &middot; [![GitHub release](https://img.shields.io/github/release/Wallemations/ss13_artmapper.svg?label=ArtMapper)](https://github.com/Wallemations/ss13_artmapper/releases/latest) [![Github All Releases](https://img.shields.io/github/downloads/Wallemations/ss13_artmapper/total.svg?logo=github)](https://github.com/Wallemations/ss13_artmapper/releases)
+
+### Download SS13 ArtMapper
+[![Download ArtMapper2.exe](https://img.shields.io/badge/Download-ArtMapper2.exe-blue?style=for-the-badge&logo=github)](https://github.com/Wallemations/ss13_artmapper/releases/download/v2.0/ArtMapper2.exe)
+
 
 
 
