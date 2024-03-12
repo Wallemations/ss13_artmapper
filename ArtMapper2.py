@@ -11,7 +11,7 @@ VALID_CANVAS_SIZES = {(11, 11), (19, 19), (23, 19), (23, 23), (24, 24), (36, 24)
 # The width and height of the window
 WIND_WIDTH, WIND_HEIGHT = 400, 600
 # Time for each countdown, must be an int
-COUNTDOWN_TIME = 1
+COUNTDOWN_TIME = 3
 # Rate at which the program does its tasks. Going too fast risks lag between client and server
 TRANSRATE = 0.05
 # Key to stop the program
