@@ -1,4 +1,7 @@
-# SS13 ArtMapper
+# SS13 ArtMapper v2.0 &middot; [![GitHub release](https://img.shields.io/github/release/Wallemations/ss13_artmapper.svg?label=ArtMapper)](https://github.com/Wallemations/ss13_artmapper/releases/latest) [![Github All Releases](https://img.shields.io/github/downloads/Wallemations/ss13_artmapper/total.svg?logo=github)](https://github.com/Wallemations/ss13_artmapper/releases) ![CI](https://github.com/Wallemations/ss13_artmapper/workflows/CI/badge.svg)
+
+
+
 A program to help easily transfer your pixel art from .png or .jpg form onto an SS13 canvas, 
 because every second you spend in front of a canvas is another second you could be killed.
 
