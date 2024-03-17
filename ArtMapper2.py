@@ -8,7 +8,7 @@ import keyboard
 
 
 # Version
-VERSION = "v2.2"
+VERSION = "v2.3"
 
 # All valid canvas sizes in the game
 VALID_CANVAS_SIZES = {(11, 11), (19, 19), (23, 19), (23, 23), (24, 24), (36, 24), (45, 27)}
@@ -176,7 +176,9 @@ def start_mapping():
         time.sleep(TRANSRATE)
         pyautogui.click(spraycolor_pos)
         time.sleep(TRANSRATE)
-        pyautogui.doubleClick(hexput_pos)
+        pyautogui.click(hexput_pos)
+        time.sleep(TRANSRATE)
+        pyautogui.click(hexput_pos)
         time.sleep(TRANSRATE)
         pyautogui.hotkey("ctrlleft", "v")
         time.sleep(TRANSRATE)
@@ -185,7 +187,7 @@ def start_mapping():
         for sysX in range(image_size[0]):
             for sysY in range(image_size[1]):
                 if keyboard.is_pressed(STOPKEY):
-                    title_label.config(text=f"SS13 ArtMapper {VERSION}", fg="black")
+                    title_label.config(text=f"SS13 ArtMapper {VERSION}", fg="white")
                     return
                 if image_hex_array[sysX][sysY] == color:
                     pyautogui.click((incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1])
@@ -195,7 +197,7 @@ def start_mapping():
         update_finhexbox_color(color)
 
     end_time = time.time()
-    title_label.config(text=f"SS13 ArtMapper {VERSION}\n{time_convert(end_time - start_time)}", fg="black")
+    title_label.config(text=f"SS13 ArtMapper {VERSION}\n{time_convert(end_time - start_time)}", fg="white")
 
 
 def update_finhexbox_color(color):
