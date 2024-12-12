@@ -2,7 +2,7 @@
 
 <p align="center"><b>Download SS13 ArtMapper</b></p>
 <p align="center">
-  <a href="https://github.com/Wallemations/ss13_artmapper/releases/download/v2.3/ArtMapper2.exe">
+  <a href="https://github.com/Wallemations/ss13_artmapper/releases/download/v2.4/ArtMapper2.exe">
     <img src="https://img.shields.io/badge/Download-ArtMapper2.exe-blue?style=for-the-badge&logo=github" alt="Download Link"/>
   </a>
 </p>
@@ -20,17 +20,21 @@ There are a few steps behind how to use this program, hopefully it's easy enough
 
 1) Upload a .png or .jpg file in the correct resolution, correlating with one of the available canvases in-game.
     - .png is recommended due to .jpg compression leading to massive color amounts.
-2) In-game, use a spraycan in-hand to open its menu. 
-3) Click the Color-Picker button and hover your mouse over the button that opens the color-picker, then press the scan key (default "i")
-4) Open the color-picker, and input the location for the Hex Input Field in the same way
-5) Input the location for the confirmation button
-6) Now, open up the canvas' UI
-7) Input the position of the Top-Left pixel, trying to get in the center of it.
-8) Input the position of the Top-Right pixel
-9) Repeat for Bottom-Left pixel
-10) Press start!
-11) If you need the program to stop, press the stop key noted in the top of the window (default "k")
+2) In-game, grab a spray-can or palette in-hand. A palette is recommended as it doesn't require you to open a menu.
+3) Click the "Set Location" button for the "Color-Picker" option. This is where the differences in palette/spray-can show up.
+    - Spraycan: Open the spraycan's menu in-game, and set the position on the "Custom Color" button using the draggable pop-up window. DO NOT CLOSE THE SPRAYCAN MENU!
+    - Palette: Select the position of the palette in your hand using the draggable pop-up window.
+4) Open the Custom Color menu in-game (the one with the color triangle/wheel), and set the location of the hex-code input field using the draggable pop-up window.
+5) Close the Custom Color menu in-game by clicking Confirm.
+6) Now, open up the canvas' UI in-game
+7) Under "Canvas Positions", press "Set Location" and resize the pop-up window so the canvas is in the center.
+    - If you uploaded your image before this, the pop-up window will have a grid that matches the canvas you should be using, which makes it a little easier to line up.
+8) Press start!
+    - If you need the program to stop, press the stop key noted in the top of the window (default "k")
+    - If you want to continue where you left off after stopping, press the Continue button!
 
+The Stop button and Transfer Tickspeed can be adjusted using the Preferences window in the Tools menu.
+In case you forget how to use this but don't want to come back to this page, there's an Instructions option in the Tools menu too!
 
 ### Credits
 
