@@ -36,7 +36,9 @@ There are a few steps behind how to use this program, hopefully it's easy enough
 
 > [!NOTE]
 > The Stop button and Transfer Tickspeed can be adjusted using the Preferences window in the Tools menu.
+>
 > <sup>(There was no way to save them without making a second file so it will reset every time you close the app)</sup>
+>
 > In case you forget how to use this but don't want to come back to this page, there's an Instructions option in the Tools menu too!
 
 ### Credits
