@@ -1,24 +1,28 @@
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+from pynput.mouse import Listener 
 import pyautogui
 import time
 import pyperclip
 import keyboard
 import webbrowser
+import threading
 
 # Version
-VERSION = "v2.4"
+VERSION = "v2.5"
+LAST_UPDATED = "Last updated 5/2/2025\nTested on Windows 10 and Byond v516.1662"
 
 # All valid canvas sizes in the game
 VALID_CANVAS_SIZES = {(11, 11), (19, 19), (23, 19), (23, 23), (24, 24), (36, 24), (45, 27)}
 # The width and height of the window
-WIND_WIDTH, WIND_HEIGHT = 400, 400
+WIND_WIDTH, WIND_HEIGHT = 400, 500
 # Rate at which the program does its tasks in ms. Going too fast risks desync from the server you're on.
 TRANSRATE = 50
-# Key to stop the program
+# Key to stop a process
 STOPKEY = "k"
-
+# Key to stop the entire program
+ESCAPE_KEY = "esc"
 # Do we have an image?
 image_selected = False
 # Position of the button to open the color picker
@@ -40,6 +44,10 @@ loaded_image = None
 stop_flag = False
 # Are we running right now
 processing_pic = False
+# Stops the mouse tracker from calling the callback twice
+callback_lock = threading.Lock()
+# Stops the mouse tracker
+tracker_stop_flag = False
 
 # Converts seconds to ms just for easier reading
 SECONDS = lambda x : int(x*1000)
@@ -83,7 +91,9 @@ def open_image():
 
 def quit_program():
     root.destroy()
+    quit()
 
+# Our painting :)
 def draw_grid():
     pixel_canvas.config(width=image_size[0]*10, height=image_size[1]*10)
     pixel_canvas.create_image(0, 0, image=photo, anchor=tk.NW, tags="IMG")
@@ -148,31 +158,96 @@ def create_draggable_window(update_pos_callback):
 
     # Capture the position and close the overlay window
     def on_close():
-        newposx, newposy = grab_pos()
-        update_pos_callback(newposx, newposy)
+        update_pos_callback(grab_pos())
 
         overlay.destroy()
 
-    
     capture_button = tk.Button(overlay, text="Capture Position", command=on_close)
     capture_button.place(relx=0.5, rely=0.9, anchor="center")
     overlay.mainloop()
 
-def spraycolor_callback(x,y):
-    global spraycolor_pos
-    spraycolor_pos = (x,y)
-    spraycolor_desc.config(text=f"Color Menu Pos: ({x},{y})", fg="green")
+
+# Makes a lil window that tells you the current mouse position
+def show_mouse_tracker(destroy_event, callback_func):
+    tracker = tk.Toplevel(root)
+    tracker.overrideredirect(True)
+    tracker.attributes("-topmost", True)
+    tracker.attributes("-alpha", 0.6)
+    tracker.config(bg="black")
+
+    label = tk.Label(tracker, text="", fg="white", bg="black", font=("Helvetica", 8))
+    label.pack()
+
+    def update_position():
+        if destroy_event.is_set():
+            tracker.destroy()
+            return
+        x, y = pyautogui.position()
+        label.config(text=f"Click or press [{STOPKEY}] to save position.\nPosition: ({x}, {y})")
+        tracker.geometry(f"+{x + 15}+{y + 15}")
+        tracker.after(50, update_position)
+        if tracker_stop_flag:
+            with callback_lock:
+                callback_func((x, y))
+            destroy_event.set()
+
+    update_position()
+
+# Grab the location of the next place we either click or press STOPKEY
+def override_next_click(callback_func):
+    global tracker_stop_flag
+    tracker_stop_flag = False
+    # Yaaay threading
+    destroy_event = threading.Event()
+    threading.Thread(target=show_mouse_tracker, args=(destroy_event, callback_func), daemon=True).start()
+
+    def on_click(x, y, button, pressed, injected=False):
+        if pressed and not injected:
+            with callback_lock:
+                callback_func((x, y))
+            destroy_event.set()
+            click_listener.stop()
+            keyboard.remove_hotkey(toggle_tracker_stop_flag)
+            return False
+
+    def toggle_tracker_stop_flag():
+        global tracker_stop_flag
+        tracker_stop_flag = True
+        click_listener.stop()
+        keyboard.remove_hotkey(toggle_tracker_stop_flag)
+        return False
+
+    click_listener = Listener(on_click=on_click)
+    keyboard.add_hotkey(STOPKEY, toggle_tracker_stop_flag)
+    click_listener.start()
     
+# Sets the color menu position
+def spraycolor_callback(newpos):
+    global spraycolor_pos
+    spraycolor_pos = newpos
+    spraycolor_desc.config(text=f"Color Menu Pos: {spraycolor_pos}", fg="green")
+
+# Uses a window to get the color menu position
 def get_spraycolor():
     create_draggable_window(spraycolor_callback)
 
-def hexput_callback(x,y):
-    global hexput_pos
-    hexput_pos = (x,y)
-    hexput_desc.config(text=f"Hex Input Pos: ({x},{y})", fg="green")
+# Overrides our next click to get the color menu position
+def get_spraycolor_mouse():
+    override_next_click(spraycolor_callback)
 
+# Hex input pos
+def hexput_callback(newpos):
+    global hexput_pos
+    hexput_pos = newpos
+    hexput_desc.config(text=f"Hex Input Pos: {hexput_pos}", fg="green")
+
+# Hex input window
 def get_hexput():
     create_draggable_window(hexput_callback)
+
+# Hex input mouse
+def get_hexput_mouse():
+    override_next_click(hexput_callback)
 
 # A window to grab the position of the canvas.
 def create_resizable_window(update_pos_callback):
@@ -258,17 +333,34 @@ def create_resizable_window(update_pos_callback):
     
     overlay.mainloop()
 
+# Callback for topleft pos
+def update_topleft(newpos):
+    global topleft_pos
+    topleft_pos = newpos
+    topleft_desc.config(text=f"Top Left Pos: {topleft_pos}", fg="green")
 
+# Callback for bottomright pos
+def update_bottomright(newpos):
+    global bottomright_pos
+    bottomright_pos = newpos
+    bottomright_desc.config(text=f"Bottom Right Pos: {bottomright_pos}", fg="green")
+    
 # Update the 2 corners of the canvas
 def update_positions(topleft, bottomright):
-    global topleft_pos, bottomright_pos
-    topleft_pos = topleft
-    topleft_desc.config(text=f"Top Left Pos: {topleft_pos}", fg="green")
-    bottomright_pos = bottomright
-    bottomright_desc.config(text=f"Bottom Right Pos: {bottomright_pos}", fg="green")
+    update_topleft(topleft)
+    update_bottomright(bottomright)
 
+# Window for canvas
 def get_canvas():
     create_resizable_window(update_positions)
+
+# Mouse for top left canvas
+def get_topleft():
+    override_next_click(update_topleft)
+
+# Mouse for bottom right canvas
+def get_bottomright():
+    override_next_click(update_bottomright)
 
 # Update the finished hexbox with our colors.
 def update_finhexbox_color(color):
@@ -292,8 +384,16 @@ def update_stopkey(newkey):
     keyboard.remove_hotkey(STOPKEY)
     STOPKEY = newkey
     keyboard.add_hotkey(STOPKEY, toggle_stop_flag)
-# Binds our default
+    
+def update_escapekey(newkey):
+    global ESCAPE_KEY
+    keyboard.remove_hotkey(ESCAPE_KEY)
+    ESCAPE_KEY = newkey
+    keyboard.add_hotkey(ESCAPE_KEY, quit_program)
+
+# Binds our defaults
 keyboard.add_hotkey(STOPKEY, toggle_stop_flag)
+keyboard.add_hotkey(ESCAPE_KEY, quit_program)
 
 # Continue from where we left off
 def continue_mapping():
@@ -304,6 +404,10 @@ def start_mapping(continueprogress = False):
     global bottomright_pos, topleft_pos, hexput_pos, spraycolor_pos, image_selected, image_size, stop_flag, processing_pic
     if not all([bottomright_pos, topleft_pos, hexput_pos, spraycolor_pos, image_selected]):
         startbutton.config(text="Insufficient Data!")
+        root.after(SECONDS(3), lambda: startbutton.config(text="Start"))
+        return
+    if processing_pic:
+        startbutton.config(text="Already Running!")
         root.after(SECONDS(3), lambda: startbutton.config(text="Start"))
         return
     title_label.config(text=f"Press {STOPKEY} to halt the program!", fg="red")
@@ -317,35 +421,44 @@ def start_mapping(continueprogress = False):
     incrementY = (bottomright_pos[1] - topleft_pos[1]) / (image_size[1] - 1)
     start_time = time.time()
     for color in image_unique_hex:
+        # Continue where we left off
         if continueprogress and (color in finhexbox.get(0, finhexbox.size()-2)):
             continue
+        # They're pressing the stop key
         if stop_flag:
             break
+        # Canvases start white, so ignore it
         if color == "#ffffff":
             update_finhexbox_color(color)
             continue
+        # Inserting the color string into the hex field in the in-game color picker
         pyperclip.copy(str(color))
-        root.after(TRANSRATE)
+        pyautogui.moveTo(spraycolor_pos,TRANSRATE)
         pyautogui.click(spraycolor_pos)
-        root.after(TRANSRATE)
-        pyautogui.click(hexput_pos)
-        root.after(TRANSRATE)
-        pyautogui.click(hexput_pos)
+        pyautogui.moveTo(hexput_pos,TRANSRATE)
+        pyautogui.doubleClick(hexput_pos)
         root.after(TRANSRATE)
         pyautogui.hotkey("ctrlleft", "v")
         root.after(TRANSRATE)
         pyautogui.hotkey("enter")
+        # Painting - Rows
         for sysX in range(image_size[0]):
+            # Stop key
             if stop_flag:
                 break
+            # Painting - Columns
             for sysY in range(image_size[1]):
+                # Stop key
                 if stop_flag:
                     break
+                # Grab our color and click twice to make sure we 100% got the color down.
                 if image_hex_array[sysX][sysY] == color:
-                    pyautogui.click((incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1])
+                    pixel_loc = (incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1]
+                    pyautogui.moveTo(pixel_loc,TRANSRATE)
+                    pyautogui.click(pixel_loc)
                     root.after(TRANSRATE)
-                    pyautogui.click
-                    root.after(TRANSRATE)
+                    pyautogui.click()
+        # Remove the color we just finished and leave
         update_finhexbox_color(color)
 
     processing_pic = False
@@ -366,15 +479,16 @@ def open_url(event, url):
 # About menu
 def about_app():
     overlay = tk.Toplevel(root, bg="#1e1e1e")
-    overlay.geometry("500x100")
+    overlay.geometry("400x160")
     overlay.title("About")
 
     abouttext = tk.Text(overlay, wrap=tk.WORD, bd=4, relief="raised", bg="#1e1e1e", fg="#ffffff")
     fulltext = (
-        "Created with Python using pyautogui and tkinter.\n"
+        "Created with Python using pyautogui and tkinter.\n\n"
         "Our Git:\n"
         "https://github.com/Wallemations/ss13_artmapper\n"
-        f"{VERSION}"
+        "Made by Wallem\n\n"
+        f"{VERSION}\n{LAST_UPDATED}"
         )
     abouttext.insert(tk.INSERT, fulltext)
     # Open my git when the url is clicked
@@ -384,6 +498,8 @@ def about_app():
     abouttext.tag_add("url", f"1.0 + {url_start} chars", f"1.0 + {url_end} chars")
     abouttext.tag_configure("url", foreground="light blue", underline=True)
     abouttext.tag_bind("url", "<Button-1>", lambda event: open_url(event, giturl))
+    abouttext.tag_configure("center", justify='center')
+    abouttext.tag_add("center", "1.0", "end")
     
     abouttext.config(state=tk.DISABLED)
     abouttext.pack(expand=True, fill=tk.BOTH)
@@ -402,14 +518,17 @@ def help_instructions():
         "1) Set up in-game with a canvas and spraycan/palette. Make sure you're somewhere safe!\n"
         "2) Upload your art into the program. Be sure it's a .png/.jpg, and that it's the right size!\n"
         "   Note: Lower color amounts = faster paintings. Index your pictures!\n"
-        "3) Set the location of the color picker button by dragging the transparent window's + on top of the corresponding area.\n"
+        "3) Set the location of the color picker button via either the helper window or direct mouse input.\n"
         "   Spraycan: In the spraycan's menu, it is the \"Custom Color\" button. DO NOT CLOSE THE SPRAYCAN MENU!\n"
         "   Palette: The palette item itself, in your mainhand.\n"
-        "4) Set the location of the your canvas. Drag the opened window until it matches the gridlines on your canvas, then confirm.\n"
+        "4) Set the location of the your canvas. Can be done by either:\n"
+        "   a) Inputting the top-left and bottom-right pixels of the canvas via mouse input.\n"
+        "   b) Using the Canvas Window until it matches the gridlines on your canvas, then confirm.\n"
         "5) Press Start!\n"
         "The program will start transferring your art in-game color-by-color.\n\n"
-        f"If you want to stop the program mid-paint, press \"{STOPKEY}\". This can be rebound in your preferences.\n"
-        "If you want to resume after stopping, click the \"Continue\" button.")
+        f"If you want to pause the process mid-paint, press \"{STOPKEY}\". This can be rebound in your preferences.\n"
+        "If you want to resume after stopping, click the \"Continue\" button.\n"
+        f"The program can be exited at any time by pressing \"{ESCAPE_KEY}\".")
     abouttext.insert(tk.INSERT,fulltext)
     
     abouttext.tag_add("bold", "2.0", "2.2")
@@ -419,8 +538,11 @@ def help_instructions():
     abouttext.tag_add("bold", "6.3", "6.12") 
     abouttext.tag_add("bold", "7.3", "7.11")
     abouttext.tag_add("bold", "8.0", "8.2")
-    abouttext.tag_add("bold", "9.0", "9.2")
-    abouttext.tag_add("bold", "12.49","12.53")
+    abouttext.tag_add("bold", "9.3", "9.5")
+    abouttext.tag_add("bold", "10.3", "10.5")
+    abouttext.tag_add("bold", "11.0", "11.2")
+    abouttext.tag_add("bold", "14.49","14.53")
+    abouttext.tag_add("bold", "16.49","16.56")
     abouttext.tag_configure("bold", font=("Helvetica", 12, "bold"))
     
     abouttext.config(state=tk.DISABLED)
@@ -431,46 +553,59 @@ def help_instructions():
 # Preference menu
 def help_prefs():
     overlay = tk.Toplevel(root, bg="#1e1e1e")
-    overlay.geometry("400x300")
+    overlay.geometry("400x370")
     overlay.title("Preferences")
-
-    prefs_title = tk.Label(overlay, text="Preferences", font=("Franklin Gothic Medium", 15), fg="#ffffff", bg="#1e1e1e")
-    prefs_desc = tk.Label(overlay, text="There's no way to save these without making an external\nfile, so you need to reset these every time you open the app.", font=("Franklin Gothic Medium", 8), fg="#ffffff", bg="#1e1e1e")
-    prefs_title.pack()
+    
+    prefs_title = tk.LabelFrame(overlay, bd=4, relief="raised", text="Preferences", font=("Franklin Gothic Medium", 15), fg="#ffffff", bg="#1e1e1e", labelanchor=tk.N)
+    prefs_desc = tk.Label(prefs_title, text="There's no way to save these without making an external\nfile, so you need to reset these every time you open the app.", font=("Franklin Gothic Medium", 8), fg="#ffffff", bg="#1e1e1e")
+    prefs_title.pack(fill=tk.BOTH,expand=True)
     prefs_desc.pack(pady=(0,10))
 
     # STOPKEY
-    stopkey_label = tk.Label(overlay, text="Stop Key (e.g., 'k'):", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 12, "bold"))
-    stopkey_desc = tk.Label(overlay, text="Press this key to halt the program.", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 10))
-    stopkey_label.pack()
+    stopkey_label = tk.LabelFrame(prefs_title, text="Stop Key (e.g., 'k'):", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 12, "bold"),labelanchor=tk.N)
+    stopkey_desc = tk.Label(stopkey_label, text="Press this key to stop certain processes.", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 10))
+    stopkey_label.pack(fill=tk.BOTH,expand=True)
     stopkey_desc.pack(pady=(0,5))
-    stopkey_entry = tk.Entry(overlay, bg="#444444", fg="#ffffff")
+    stopkey_entry = tk.Entry(stopkey_label, bg="#444444", fg="#ffffff")
     stopkey_entry.insert(0, STOPKEY)
     stopkey_entry.pack(pady=(0,5))
-    
+
+    # ESCAPEKEY
+    escapekey_label = tk.LabelFrame(prefs_title, text="Escape Key (e.g., 'esc'):", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 12, "bold"),labelanchor=tk.N)
+    escapekey_desc = tk.Label(escapekey_label, text="Press this key to exit the program.", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 10))
+    escapekey_label.pack(fill=tk.BOTH,expand=True)
+    escapekey_desc.pack(pady=(0,5))
+    escapekey_entry = tk.Entry(escapekey_label, bg="#444444", fg="#ffffff")
+    escapekey_entry.insert(0, ESCAPE_KEY)
+    escapekey_entry.pack(pady=(0,5))
+
     # TRANSRATE
-    transrate_label = tk.Label(overlay, text="Transfer Rate in Milliseconds (e.g., '50'):", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 12, "bold"))
-    transrate_desc = tk.Label(overlay, text="Lower numbers can lead to desync from\nservers due to too many inputs too fast.", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 10))
-    transrate_label.pack()
+    transrate_label = tk.LabelFrame(prefs_title, text="Transfer Rate in Milliseconds (e.g., '50'):", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 12, "bold"),labelanchor=tk.N)
+    transrate_desc = tk.Label(transrate_label, text="Lower numbers can lead to desync from\nservers due to too many inputs too fast.", fg="#ffffff", bg="#1e1e1e", font=("Helvetica", 10))
+    transrate_label.pack(fill=tk.BOTH,expand=True)
     transrate_desc.pack(pady=(0,5))
-    transrate_entry = tk.Entry(overlay, bg="#444444", fg="#ffffff")
+    transrate_entry = tk.Entry(transrate_label, bg="#444444", fg="#ffffff")
     transrate_entry.insert(0, str(TRANSRATE))
     transrate_entry.pack(pady=(0,5))
 
     def save_preferences():
         global STOPKEY
         global TRANSRATE
+        global ESCAPE_KEY
         new_stopkey = stopkey_entry.get()
-        if new_stopkey:
+        if new_stopkey is not STOPKEY:
             update_stopkey(new_stopkey)
         new_transrate = transrate_entry.get()
-        if new_transrate:
+        if new_transrate is not TRANSRATE:
             TRANSRATE = new_transrate
+        new_escapekey = escapekey_entry.get()
+        if new_escapekey is not ESCAPE_KEY:
+            update_escapekey(new_escapekey)
     
         overlay.destroy()
 
-    save_button = tk.Button(overlay, text="Save Preferences", command=save_preferences, bg="#444444", fg="#ffffff")
-    save_button.pack()
+    save_button = tk.Button(prefs_title, text="Save Preferences", command=save_preferences, bg="#444444", fg="#ffffff",font=("Helvetica", 10, "bold"))
+    save_button.pack(pady=(5,5))
 
     overlay.mainloop()
 
@@ -487,7 +622,7 @@ def copyhex(event, listbox):
 # Create the main application window
 root = tk.Tk()
 root.title(f"SS13 ArtMapper {VERSION}")
-root.geometry("400x400")
+root.geometry(f"{WIND_WIDTH}x{WIND_HEIGHT}")
 root.configure(bg="#1e1e1e")
 
 #! Menu toolbar
@@ -568,33 +703,57 @@ instructions.pack()
 spraycolor_desc = tk.Label(frame_3, text="Color-Picker Button Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
 spraycolor_desc.pack()
 
-get_spraycolor_button = tk.Button(frame_3, text="Set Location", command=get_spraycolor, bg="#444444", fg="#ffffff")
-get_spraycolor_button.pack()
+spraycolor_setvia = tk.Label(frame_3, text="Set Location Via:", fg="white", bg="#1e1e1e")
+spraycolor_setvia.pack()
+
+spraycolor_button_frame = tk.Frame(frame_3, bg="#1e1e1e")
+spraycolor_button_frame.pack(fill=tk.X, padx=5, pady=5)
+spraycolor_button_frame.grid_columnconfigure(0, weight=1, uniform="group")
+spraycolor_button_frame.grid_columnconfigure(1, weight=1, uniform="group")
+
+get_spraycolor_button = tk.Button(spraycolor_button_frame, text="Window", command=get_spraycolor, bg="#444444", fg="#ffffff")
+get_spraycolor_button.grid(row=0, column=0, padx=5, sticky="ew")
+
+get_spraycolor_button_mouse = tk.Button(spraycolor_button_frame, text="Mouse", command=get_spraycolor_mouse, bg="#444444", fg="#ffffff")
+get_spraycolor_button_mouse.grid(row=0, column=1, padx=5, sticky="ew")
 
 # Input for hexput
 hexput_desc = tk.Label(frame_3, text="Hex Input Field Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
 hexput_desc.pack()
 
-get_hexput_button = tk.Button(frame_3, text="Set Location", command=get_hexput, bg="#444444", fg="#ffffff")
-get_hexput_button.pack()
+hexput_setvia = tk.Label(frame_3, text="Set Location Via:", fg="white", bg="#1e1e1e")
+hexput_setvia.pack()
 
-# Canvas Label
-canvas_desc = tk.Label(frame_3, text="Canvas Positions", font=("Franklin Gothic Medium", 12), fg="#ffffff", bg="#1e1e1e")
-canvas_desc.pack()
+hexput_button_frame = tk.Frame(frame_3, bg="#1e1e1e")
+hexput_button_frame.pack(fill=tk.X, padx=5, pady=5)
+hexput_button_frame.grid_columnconfigure(0, weight=1, uniform="group")
+hexput_button_frame.grid_columnconfigure(1, weight=1, uniform="group")
+
+get_hexput_button = tk.Button(hexput_button_frame, text="Window", command=get_hexput, bg="#444444", fg="#ffffff")
+get_hexput_button.grid(row=0, column=0, padx=5, sticky="ew")
+
+get_hexput_button_mouse = tk.Button(hexput_button_frame, text="Mouse", command=get_hexput_mouse, bg="#444444", fg="#ffffff")
+get_hexput_button_mouse.grid(row=0, column=1, padx=5, sticky="ew")
 
 #! I'm so rich I got a frame for my frames
-frame_4 = tk.Frame(frame_3, bd=4, relief="raised", bg="#1e1e1e")
+frame_4 = tk.LabelFrame(frame_3, bd=4, relief="raised", text="Canvas Positions", font=("Franklin Gothic Medium", 12), fg="#ffffff", bg="#1e1e1e", labelanchor=tk.N)
 frame_4.pack(fill=tk.BOTH, expand=1)
 
 # Input for Canvas
 topleft_desc = tk.Label(frame_4, text="Top Left Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
 topleft_desc.pack()
 
+topleft_loc = tk.Button(frame_4, text="Top-Left", command=get_topleft, bg="#444444", fg="#ffffff")
+topleft_loc.pack()
+
 bottomright_desc = tk.Label(frame_4, text="Bottom Right Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
 bottomright_desc.pack()
 
-canvasloc = tk.Button(frame_4, text="Set Location", command=get_canvas, bg="#444444", fg="#ffffff")
-canvasloc.pack()
+bottomright_loc = tk.Button(frame_4, text="Bottom-Right", command=get_bottomright, bg="#444444", fg="#ffffff")
+bottomright_loc.pack()
+
+canvasloc = tk.Button(frame_4, text="Window", command=get_canvas, bg="#444444", fg="#ffffff")
+canvasloc.pack(pady=(10, 0))
 
 #! Buttons
 frame_5 = tk.Frame(frame_3, bg="#1e1e1e")
