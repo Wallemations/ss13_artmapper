@@ -90,7 +90,10 @@ def open_image():
         get_unique_hexes()
 
 def quit_program():
-    root.destroy()
+    if processing_pic:
+        toggle_stop_flag()
+
+    root.after(TRANSRATE*2,root.destroy)
     quit()
 
 # Our painting :)
@@ -207,14 +210,14 @@ def override_next_click(callback_func):
                 callback_func((x, y))
             destroy_event.set()
             click_listener.stop()
-            keyboard.remove_hotkey(toggle_tracker_stop_flag)
+            update_stopkey(STOPKEY)
             return False
 
     def toggle_tracker_stop_flag():
         global tracker_stop_flag
         tracker_stop_flag = True
         click_listener.stop()
-        keyboard.remove_hotkey(toggle_tracker_stop_flag)
+        update_stopkey(STOPKEY)
         return False
 
     click_listener = Listener(on_click=on_click)
@@ -397,7 +400,10 @@ keyboard.add_hotkey(ESCAPE_KEY, quit_program)
 
 # Continue from where we left off
 def continue_mapping():
-    start_mapping(True)
+    startmap_thread(True)
+
+def startmap_thread(continueprogress = False):
+    threading.Thread(target=start_mapping, args=(continueprogress,), daemon=True).start()
 
 # The actual mapping segment
 def start_mapping(continueprogress = False):
@@ -420,57 +426,66 @@ def start_mapping(continueprogress = False):
     incrementX = (bottomright_pos[0] - topleft_pos[0]) / (image_size[0] - 1)
     incrementY = (bottomright_pos[1] - topleft_pos[1]) / (image_size[1] - 1)
     start_time = time.time()
-    for color in image_unique_hex:
+    
+    def handle_color(color):
+        global stop_flag
         # Continue where we left off
         if continueprogress and (color in finhexbox.get(0, finhexbox.size()-2)):
-            continue
+            return True
         # They're pressing the stop key
         if stop_flag:
-            break
-        # Canvases start white, so ignore it
-        if color == "#ffffff":
-            update_finhexbox_color(color)
-            continue
-        # Inserting the color string into the hex field in the in-game color picker
+            return False
+        # Insert the color string into the hex field in the in-game color picker
         pyperclip.copy(str(color))
-        pyautogui.moveTo(spraycolor_pos,TRANSRATE)
+        root.after(TRANSRATE)
         pyautogui.click(spraycolor_pos)
-        pyautogui.moveTo(hexput_pos,TRANSRATE)
+        root.after(TRANSRATE)
         pyautogui.doubleClick(hexput_pos)
         root.after(TRANSRATE)
         pyautogui.hotkey("ctrlleft", "v")
         root.after(TRANSRATE)
         pyautogui.hotkey("enter")
-        # Painting - Rows
-        for sysX in range(image_size[0]):
-            # Stop key
-            if stop_flag:
+
+        return True
+    def handle_painting():
+        global stop_flag, processing_pic
+        for color in image_unique_hex:
+            if color == "#ffffff":
+                update_finhexbox_color(color)
+                continue
+            if not handle_color(color):
                 break
-            # Painting - Columns
-            for sysY in range(image_size[1]):
+
+            # Painting - Rows
+            for sysX in range(image_size[0]):
                 # Stop key
                 if stop_flag:
                     break
-                # Grab our color and click twice to make sure we 100% got the color down.
-                if image_hex_array[sysX][sysY] == color:
-                    pixel_loc = (incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1]
-                    pyautogui.moveTo(pixel_loc,TRANSRATE)
-                    pyautogui.click(pixel_loc)
-                    root.after(TRANSRATE)
-                    pyautogui.click()
-        # Remove the color we just finished and leave
-        update_finhexbox_color(color)
+                # Painting - Columns
+                for sysY in range(image_size[1]):
+                    # Stop key
+                    if stop_flag:
+                        break
+                    # Grab our color and click twice to make sure we 100% got the color down.
+                    if image_hex_array[sysX][sysY] == color:
+                        pixel_loc = (incrementX * sysX) + topleft_pos[0], (incrementY * sysY) + topleft_pos[1]
+                        root.after(TRANSRATE)
+                        pyautogui.click(pixel_loc)
+                        root.after(TRANSRATE)
+                        pyautogui.click()
+            # Remove the color we just finished and leave
+            update_finhexbox_color(color)
 
-    processing_pic = False
-    if stop_flag:
-        stop_flag = False
-        root.after(TRANSRATE, lambda: title_label.config(text=f"SS13 ArtMapper {VERSION}", fg="white"))
-        contbutton.config(state=tk.ACTIVE)
-        return
-
-    contbutton.config(state=tk.DISABLED)
-    end_time = time.time()
-    title_label.config(text=f"SS13 ArtMapper {VERSION}\n{time_convert(end_time - start_time)}", fg="white")
+        processing_pic = False
+        if stop_flag:
+            stop_flag = False
+            root.after(TRANSRATE, lambda: title_label.config(text=f"SS13 ArtMapper {VERSION}", fg="white"))
+            contbutton.config(state=tk.ACTIVE)
+        else:
+            contbutton.config(state=tk.DISABLED)
+            end_time = time.time()
+            title_label.config(text=f"SS13 ArtMapper {VERSION}\n{time_convert(end_time - start_time)}", fg="white")
+    root.after(0, handle_painting)
 
 # Opens the git
 def open_url(event, url):
