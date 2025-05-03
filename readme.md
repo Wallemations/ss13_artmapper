@@ -1,4 +1,5 @@
-# SS13 ArtMapper &middot; [![GitHub release](https://img.shields.io/github/v/release/Wallemations/ss13_artmapper?color=blue&label=Current%20Version)](https://github.com/Wallemations/ss13_artmapper/releases/latest)
+# SS13 ArtMapper &middot; ![GitHub Release](https://img.shields.io/github/v/release/Wallemations/ss13_artmapper?label=SS13%20ArtMapper%202) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Wallemations/ss13_artmapper/total)
+
 
 <p align="center"><b>Download SS13 ArtMapper</b></p>
 <p align="center">
