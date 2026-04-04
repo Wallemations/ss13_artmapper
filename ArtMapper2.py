@@ -29,6 +29,7 @@ image_selected = False
 spraycolor_pos = None
 # Position of the hex input area in the color picker
 hexput_pos  = None
+submit_pos = None
 # Position of the canvas on the screen
 topleft_pos = None
 bottomright_pos = None
@@ -238,6 +239,17 @@ def get_spraycolor():
 def get_spraycolor_mouse():
     override_next_click(spraycolor_callback)
 
+def submit_callback(newpos):
+    global submit_pos
+    submit_pos = newpos
+    submit_desc.config(text=f"Submit Menu Pos: {submit_pos}", fg="green")
+    
+def get_submit():
+    create_draggable_window(submit_callback)
+    
+def get_submit_mouse():
+    override_next_click(submit_callback)
+    
 # Hex input pos
 def hexput_callback(newpos):
     global hexput_pos
@@ -439,12 +451,18 @@ def start_mapping(continueprogress = False):
         pyperclip.copy(str(color))
         root.after(TRANSRATE)
         pyautogui.click(spraycolor_pos)
+        print(spraycolor_pos)
         root.after(TRANSRATE)
         pyautogui.doubleClick(hexput_pos)
         root.after(TRANSRATE)
         pyautogui.hotkey("ctrlleft", "v")
         root.after(TRANSRATE)
         pyautogui.hotkey("enter")
+        root.after(TRANSRATE)
+        pyautogui.click(submit_pos)
+        root.after(TRANSRATE)
+        pyautogui.click(spraycolor_pos)
+        root.after(TRANSRATE)
 
         return True
     def handle_painting():
@@ -731,6 +749,24 @@ get_spraycolor_button.grid(row=0, column=0, padx=5, sticky="ew")
 
 get_spraycolor_button_mouse = tk.Button(spraycolor_button_frame, text="Mouse", command=get_spraycolor_mouse, bg="#444444", fg="#ffffff")
 get_spraycolor_button_mouse.grid(row=0, column=1, padx=5, sticky="ew")
+
+# Input for submit button
+submit_desc = tk.Label(frame_3, text="Submit Button Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
+submit_desc.pack()
+
+submit_setvia = tk.Label(frame_3, text="Set Location Via:", fg="white", bg="#1e1e1e")
+submit_setvia.pack()
+
+submit_button_frame = tk.Frame(frame_3, bg="#1e1e1e")
+submit_button_frame.pack(fill=tk.X, padx=5, pady=5)
+submit_button_frame.grid_columnconfigure(0, weight=1, uniform="group")
+submit_button_frame.grid_columnconfigure(1, weight=1, uniform="group")
+
+get_submit_button = tk.Button(submit_button_frame, text="Window", command=get_submit, bg="#444444", fg="#ffffff")
+get_submit_button.grid(row=0, column=0, padx=5, sticky="ew")
+
+get_submit_button_mouse = tk.Button(submit_button_frame, text="Mouse", command=get_submit_mouse, bg="#444444", fg="#ffffff")
+get_submit_button_mouse.grid(row=0, column=1, padx=5, sticky="ew")
 
 # Input for hexput
 hexput_desc = tk.Label(frame_3, text="Hex Input Field Not Set", font=("Franklin Gothic Medium", 10), fg="red", bg="#1e1e1e")
